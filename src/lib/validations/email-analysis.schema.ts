@@ -21,10 +21,11 @@ export const OpenAIResponseSchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative']),
   urgency: z.enum(['low', 'medium', 'high']),
   entities: z.object({
-    products: z.array(z.string()).default([]),
-    order_ids: z.array(z.string()).default([]),
-    account_ids: z.array(z.string()).default([]),
-    issues: z.array(z.string()).default([]),
+    /* Pas de .default() — incompatible avec OpenAI Structured Outputs JSON Schema */
+    products: z.array(z.string()),
+    order_ids: z.array(z.string()),
+    account_ids: z.array(z.string()),
+    issues: z.array(z.string()),
   }),
   key_points: z.array(z.string()).min(1).max(5),
   draft_reply: z.string(),
