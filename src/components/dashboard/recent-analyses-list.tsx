@@ -2,9 +2,11 @@
 
 /**
  * Liste des 5 analyses les plus récentes pour le dashboard.
+ * Affiche un badge d'erreur si l'analyse OpenAI a échoué.
  */
 
 import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/shared/category-badge'
@@ -44,7 +46,15 @@ export function RecentAnalysesList() {
                 <p className="text-xs text-slate-400">{analysis.sender_name}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <CategoryBadge category={analysis.category} />
+                {analysis.processing_error !== null ? (
+                  /* Badge d'erreur — analyse OpenAI échouée */
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-600">
+                    <AlertCircle className="h-3 w-3" />
+                    Failed
+                  </span>
+                ) : (
+                  <CategoryBadge category={analysis.category} />
+                )}
                 <span className="text-xs text-slate-400">
                   {formatDistanceToNow(new Date(analysis.created_at), { addSuffix: true })}
                 </span>
