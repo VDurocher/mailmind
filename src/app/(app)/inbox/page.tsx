@@ -16,12 +16,12 @@ export default function InboxPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Toolbar — flex-wrap sur mobile pour éviter le débordement du bouton */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <Suspense>
           <EmailFilters />
         </Suspense>
-        <Button onClick={() => setIsModalOpen(true)} size="sm">
+        <Button onClick={() => setIsModalOpen(true)} size="sm" className="shrink-0">
           <Plus className="h-4 w-4" />
           Analyze email
         </Button>
