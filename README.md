@@ -1,19 +1,20 @@
-# MailMind
+# Mailmind AI
 
-> AI-powered support email analysis tool that classifies intent, detects urgency, and drafts replies — built for customer-facing teams.
+![Next.js](https://img.shields.io/badge/Next.js_16-black?logo=next.js) ![TypeScript](https://img.shields.io/badge/TypeScript_5.8-3178C6?logo=typescript&logoColor=white) ![OpenAI](https://img.shields.io/badge/GPT--4o-412991?logo=openai&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white) ![License](https://img.shields.io/badge/license-MIT-green)
+
+> AI-powered email triage tool that classifies intent, detects urgency, and drafts replies — built for customer-facing teams.
 
 ## Features
 
-- Email analysis via GPT-4o: category classification, sentiment, urgency, confidence score
-- 8 supported categories: complaint, sales lead, technical question, billing, feature request, partnership, onboarding, churn risk
-- Automatic draft reply generation per analyzed email
-- Entity extraction: products, order IDs, account IDs, detected issues
-- Inbox with filtering and real-time updates via Supabase Realtime
-- Dashboard with charts: category distribution, urgency breakdown, confidence over time
-- Usage statistics per user (configurable time window)
-- Account settings with data deletion
-- Authentication with Supabase Auth (email/password)
-- Protected routes with server-side session validation
+- **GPT-4o analysis pipeline** — category, sentiment, urgency, confidence score, entity extraction
+- **8 intent categories** — complaint, sales lead, technical question, billing, feature request, partnership, onboarding, churn risk
+- **Automatic draft reply** generated per analyzed email
+- **Entity extraction** — products, order IDs, account IDs, detected issues
+- **Real-time inbox** with filtering via Supabase Realtime
+- **Dashboard** — category distribution, urgency breakdown, confidence over time
+- **Authentication** — Supabase Auth (email/password) with brute-force protection (5 attempts / 15 min / IP)
+- **Security** — HTTP security headers (CSP, HSTS, X-Frame-Options), Zod-validated API inputs
+- **Protected routes** — server-side session validation on all app pages
 
 ## Stack
 
@@ -29,21 +30,20 @@
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
 | Real-time | Supabase Realtime |
-| Deploy | Vercel (recommended) |
+| Deploy | Vercel |
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- npm or pnpm
 - A Supabase project
 - An OpenAI API key
 
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/mailmind
+git clone https://github.com/VDurocher/mailmind
 cd mailmind
 npm install
 cp .env.example .env.local
@@ -53,13 +53,11 @@ npm run dev
 
 ### Database setup
 
-Apply the migration to your Supabase project:
-
 ```bash
 # Via Supabase CLI
 supabase db push
 
-# Or apply the SQL file manually in the Supabase SQL editor
+# Or apply manually in the Supabase SQL editor
 # File: supabase-migration.sql
 ```
 
@@ -68,12 +66,12 @@ supabase db push
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL | Yes |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous (public) key | Yes |
-| `OPENAI_API_KEY` | OpenAI secret key — server-side only, never expose to the client | Yes |
-| `NEXT_PUBLIC_APP_URL` | Base URL of the application (e.g. `http://localhost:3000`) | Yes |
-| `SUPABASE_DB_URL` | PostgreSQL connection string — required for migration scripts only | No |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | Yes |
+| `OPENAI_API_KEY` | OpenAI secret key — server-side only | Yes |
+| `NEXT_PUBLIC_APP_URL` | Base URL of the app (e.g. `http://localhost:3000`) | Yes |
+| `SUPABASE_DB_URL` | PostgreSQL connection string — migration scripts only | No |
 
-> `OPENAI_API_KEY` must never be prefixed with `NEXT_PUBLIC_`. It is used exclusively in server-side API routes.
+> `OPENAI_API_KEY` must never be prefixed with `NEXT_PUBLIC_`. Used exclusively in server-side API routes.
 
 ## Project Structure
 
@@ -81,37 +79,34 @@ supabase db push
 src/
 ├── app/
 │   ├── (auth)/           — Login and registration pages (public)
-│   │   ├── login/
-│   │   └── register/
 │   ├── (app)/            — Protected routes (auth required)
 │   │   ├── dashboard/    — Metrics and charts
 │   │   ├── inbox/        — Email list and analysis modal
 │   │   └── settings/     — User profile and data management
 │   ├── api/
-│   │   ├── analyze/      — POST: runs the full AI analysis pipeline
+│   │   ├── auth/login/   — POST: Supabase login with rate limiting
+│   │   ├── analyze/      — POST: AI analysis pipeline
 │   │   ├── analyses/     — GET: paginated inbox with filters
 │   │   └── usage/        — GET: dashboard statistics
-│   ├── layout.tsx
 │   └── page.tsx          — Public landing page
 │
 ├── components/
 │   ├── ui/               — Base components (Radix UI + Tailwind)
-│   ├── auth/             — Login and register forms
-│   ├── dashboard/        — Stats grid, pie chart, bar chart, line chart
-│   ├── inbox/            — Email list, filters, analysis modal, detail view
-│   ├── landing/          — Hero section, features section, footer
-│   ├── layout/           — Sidebar, header, mobile nav
-│   └── shared/           — Reusable cross-feature components
+│   ├── auth/             — Login form
+│   ├── dashboard/        — Stats grid, charts
+│   ├── inbox/            — Email list, filters, analysis modal
+│   ├── landing/          — Hero, features, footer
+│   └── layout/           — Sidebar, header, mobile nav
 │
 ├── lib/
-│   ├── openai/           — GPT-4o pipeline, Zod-to-JSON-Schema conversion
+│   ├── openai/           — GPT-4o pipeline, Zod-to-JSON-Schema
 │   ├── supabase/         — Server and client Supabase instances
-│   ├── hooks/            — TanStack Query hooks (analyses, stats, realtime)
+│   ├── security/         — Rate limiter (in-memory sliding window)
+│   ├── hooks/            — TanStack Query hooks
 │   ├── queries/          — Supabase query functions
 │   ├── types/            — Shared TypeScript types
-│   └── validations/      — Zod schemas for API inputs and AI responses
+│   └── validations/      — Zod schemas for all API inputs
 │
-supabase/
 supabase-migration.sql    — Database schema
 ```
 
@@ -119,9 +114,35 @@ supabase-migration.sql    — Database schema
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `POST` | `/api/analyze` | Validates input, calls GPT-4o, stores result in Supabase |
-| `GET` | `/api/analyses` | Returns paginated email analyses with optional filters |
-| `GET` | `/api/usage` | Returns dashboard statistics (stats, category breakdown, urgency, confidence) |
+| `POST` | `/api/auth/login` | Authenticates user via Supabase, rate-limited per IP |
+| `POST` | `/api/analyze` | Validates input, calls GPT-4o, stores result |
+| `GET` | `/api/analyses` | Paginated email analyses with filters |
+| `GET` | `/api/analyses/[id]` | Single analysis by ID |
+| `GET` | `/api/usage` | Dashboard statistics (category breakdown, urgency, confidence) |
+
+### Example — Analyze an email
+
+```typescript
+const response = await fetch('/api/analyze', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    subject: 'My order never arrived',
+    body: 'Hi, I placed order #12345 two weeks ago and still nothing...',
+    sender: 'customer@example.com',
+  }),
+})
+
+const analysis = await response.json()
+// {
+//   category: 'complaint',
+//   urgency: 'high',
+//   sentiment: 'negative',
+//   confidence: 0.94,
+//   entities: { orderIds: ['12345'] },
+//   draftReply: 'Hi, we sincerely apologize...'
+// }
+```
 
 ## Available Scripts
 
@@ -130,9 +151,9 @@ npm run dev        # Start development server
 npm run build      # Build for production
 npm run start      # Start production server
 npm run lint       # Run ESLint
-npm run typecheck  # Run TypeScript compiler check (no emit)
+npm run typecheck  # TypeScript check (no emit)
 ```
 
 ## License
 
-Private
+MIT
