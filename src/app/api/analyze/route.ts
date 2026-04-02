@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AnalyzeRequestSchema } from '@/lib/validations/api-analyze.schema'
 import { analyzeEmail, buildFallbackAnalysis, computePriorityScore } from '@/lib/openai/pipeline'
 import { insertAnalysis } from '@/lib/queries/analyses.queries'
+import { checkRateLimit, ANALYZE_RATE_LIMIT } from '@/lib/security/rate-limit'
 
 export async function POST(request: Request) {
   /* Authentification */
@@ -16,6 +17,23 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  }
+
+  /* Rate limiting : 10 requêtes par minute par utilisateur — protège le quota GPT-4o */
+  const rateLimitResult = checkRateLimit(`analyze:${user.id}`, ANALYZE_RATE_LIMIT)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'RATE_LIMIT_EXCEEDED', message: 'Trop de requêtes. Réessayez dans une minute.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          'X-RateLimit-Limit': String(ANALYZE_RATE_LIMIT.maxRequests),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(rateLimitResult.resetAt),
+        },
+      },
+    )
   }
 
   /* Validation du body */

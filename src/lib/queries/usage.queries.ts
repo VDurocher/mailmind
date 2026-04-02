@@ -14,14 +14,17 @@ import type {
 /** Statistiques globales : total, par catégorie, urgences hautes */
 export async function getDashboardStats(
   supabase: SupabaseClient,
+  userId: string,
   days: number = 30,
 ): Promise<DashboardStats> {
   const since = new Date()
   since.setDate(since.getDate() - days)
 
+  /* Filtre user_id explicite — défense en profondeur en plus du RLS */
   const { data, error } = await supabase
     .from('email_analyses')
     .select('category, urgency, priority_score')
+    .eq('user_id', userId)
     .gte('created_at', since.toISOString())
 
   /* Fallback si la colonne priority_score n'existe pas encore (avant migration) */
@@ -30,6 +33,7 @@ export async function getDashboardStats(
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('email_analyses')
         .select('category, urgency')
+        .eq('user_id', userId)
         .gte('created_at', since.toISOString())
       if (fallbackError) throw fallbackError
       const fallbackRows = fallbackData ?? []
@@ -63,13 +67,20 @@ export async function getDashboardStats(
   }
 }
 
+/** Nombre maximum de lignes retournées pour les stats agrégées */
+const STATS_ROW_LIMIT = 10000
+
 /** Distribution par catégorie pour le pie chart */
 export async function getCategoryStats(
   supabase: SupabaseClient,
+  userId: string,
 ): Promise<CategoryStat[]> {
+  /* Filtre user_id + limite pour éviter un scan complet de la table */
   const { data, error } = await supabase
     .from('email_analyses')
     .select('category')
+    .eq('user_id', userId)
+    .limit(STATS_ROW_LIMIT)
 
   if (error) throw error
 
@@ -84,19 +95,23 @@ export async function getCategoryStats(
   }))
 }
 
-/** Évolution de la confiance moyenne sur les 30 derniers jours */
+/** Évolution de la confiance moyenne sur les N derniers jours */
 export async function getConfidenceTimeSeries(
   supabase: SupabaseClient,
+  userId: string,
   days: number = 30,
 ): Promise<ConfidencePoint[]> {
   const since = new Date()
   since.setDate(since.getDate() - days)
 
+  /* Filtre user_id explicite — défense en profondeur en plus du RLS */
   const { data, error } = await supabase
     .from('email_analyses')
     .select('confidence, created_at')
+    .eq('user_id', userId)
     .gte('created_at', since.toISOString())
     .order('created_at', { ascending: true })
+    .limit(STATS_ROW_LIMIT)
 
   if (error) throw error
 
@@ -117,10 +132,14 @@ export async function getConfidenceTimeSeries(
 /** Distribution par niveau d'urgence pour le bar chart */
 export async function getUrgencyStats(
   supabase: SupabaseClient,
+  userId: string,
 ): Promise<UrgencyStat[]> {
+  /* Filtre user_id + limite pour éviter un scan complet de la table */
   const { data, error } = await supabase
     .from('email_analyses')
     .select('urgency')
+    .eq('user_id', userId)
+    .limit(STATS_ROW_LIMIT)
 
   if (error) throw error
 

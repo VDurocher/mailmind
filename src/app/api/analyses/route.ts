@@ -4,38 +4,8 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { listAnalyses, type AnalysesFilter } from '@/lib/queries/analyses.queries'
-import type { EmailCategory, UrgencyLevel } from '@/lib/types/email.types'
-
-/** Construit le filtre via affectation impérative — respecte exactOptionalPropertyTypes */
-function buildFilter(searchParams: URLSearchParams): AnalysesFilter {
-  /* Type mutable intermédiaire — sans readonly pour permettre l'affectation conditionnelle */
-  const filter: {
-    page: number
-    category?: EmailCategory
-    urgency?: UrgencyLevel
-    sort?: AnalysesFilter['sort']
-    date_from?: string
-    date_to?: string
-  } = { page: searchParams.has('page') ? Number(searchParams.get('page')) : 1 }
-
-  const category = searchParams.get('category')
-  if (category !== null) filter.category = category as EmailCategory
-
-  const urgency = searchParams.get('urgency')
-  if (urgency !== null) filter.urgency = urgency as UrgencyLevel
-
-  const sort = searchParams.get('sort')
-  if (sort !== null) filter.sort = sort as AnalysesFilter['sort']
-
-  const dateFrom = searchParams.get('date_from')
-  if (dateFrom !== null) filter.date_from = dateFrom
-
-  const dateTo = searchParams.get('date_to')
-  if (dateTo !== null) filter.date_to = dateTo
-
-  return filter
-}
+import { listAnalyses } from '@/lib/queries/analyses.queries'
+import { AnalysesQuerySchema } from '@/lib/validations/analyses-query.schema'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -45,11 +15,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
 
+  /* Validation Zod des query params — remplace les casts `as` non sécurisés */
   const { searchParams } = new URL(request.url)
-  const filter = buildFilter(searchParams)
+  const rawParams = Object.fromEntries(searchParams.entries())
+  const parsed = AnalysesQuerySchema.safeParse(rawParams)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'VALIDATION_ERROR', details: parsed.error.issues },
+      { status: 400 },
+    )
+  }
+
+  const { page, category, urgency, sort, date_from, date_to } = parsed.data
 
   try {
-    const result = await listAnalyses(supabase, filter)
+    /* user.id passé explicitement pour la défense en profondeur contre l'IDOR */
+    const result = await listAnalyses(supabase, user.id, {
+      page,
+      category,
+      urgency,
+      sort,
+      date_from,
+      date_to,
+    })
     return NextResponse.json(result)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'

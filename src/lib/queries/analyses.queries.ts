@@ -29,14 +29,17 @@ function withDefaults(row: Record<string, unknown>): EmailAnalysis {
 /** Récupère la liste paginée des analyses de l'utilisateur courant */
 export async function listAnalyses(
   supabase: SupabaseClient,
+  userId: string,
   filter: AnalysesFilter = {},
 ): Promise<PaginatedAnalyses> {
   const page = filter.page ?? 1
   const offset = (page - 1) * PAGE_SIZE
 
+  /* Filtre user_id explicite — défense en profondeur en plus du RLS */
   let query = supabase
     .from('email_analyses')
     .select('*', { count: 'exact' })
+    .eq('user_id', userId)
 
   if (filter.category) {
     query = query.eq('category', filter.category)
@@ -77,15 +80,17 @@ export async function listAnalyses(
   }
 }
 
-/** Récupère une analyse complète par ID */
+/** Récupère une analyse complète par ID — filtre user_id pour éviter l'IDOR */
 export async function getAnalysisById(
   supabase: SupabaseClient,
   id: string,
+  userId: string,
 ): Promise<EmailAnalysis | null> {
   const { data, error } = await supabase
     .from('email_analyses')
     .select('*')
     .eq('id', id)
+    .eq('user_id', userId)
     .single()
 
   if (error) {
@@ -123,16 +128,18 @@ export async function insertAnalysis(
   return withDefaults(data as Record<string, unknown>)
 }
 
-/** Met à jour le brouillon édité par l'utilisateur */
+/** Met à jour le brouillon édité par l'utilisateur — filtre user_id pour éviter l'IDOR */
 export async function updateDraftReply(
   supabase: SupabaseClient,
   id: string,
+  userId: string,
   draftReplyEdited: string,
 ): Promise<{ updated_at: string }> {
   const { data, error } = await supabase
     .from('email_analyses')
     .update({ draft_reply_edited: draftReplyEdited })
     .eq('id', id)
+    .eq('user_id', userId)
     .select('updated_at')
     .single()
 
