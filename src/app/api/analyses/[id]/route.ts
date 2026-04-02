@@ -23,7 +23,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    const analysis = await getAnalysisById(supabase, id)
+    /* user.id passé explicitement pour la défense en profondeur contre l'IDOR */
+    const analysis = await getAnalysisById(supabase, id, user.id)
     if (!analysis) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
     }
@@ -63,7 +64,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   try {
-    const result = await updateDraftReply(supabase, id, parsed.data.draft_reply_edited)
+    /* user.id passé explicitement pour la défense en profondeur contre l'IDOR */
+    const result = await updateDraftReply(supabase, id, user.id, parsed.data.draft_reply_edited)
     return NextResponse.json(result)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'
