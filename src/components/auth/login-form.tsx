@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Formulaire de connexion — email + mot de passe via Supabase Auth.
+ * Formulaire de connexion — passe par /api/auth/login pour le rate limiting côté serveur.
  */
 
 import { useState, type FormEvent } from 'react'
@@ -12,11 +12,9 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useSupabase } from '@/providers/supabase-provider'
 import { ROUTES } from '@/lib/constants/routes'
 
 export function LoginForm() {
-  const supabase = useSupabase()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -29,10 +27,19 @@ export function LoginForm() {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    /* Appel via la route API serveur pour bénéficier du rate limiting par IP */
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
 
-    if (error) {
-      toast.error(error.message)
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({})) as { message?: string }
+      const errorMessage = response.status === 429
+        ? 'Trop de tentatives. Réessayez dans 15 minutes.'
+        : (data.message ?? 'Email ou mot de passe incorrect.')
+      toast.error(errorMessage)
       setIsLoading(false)
       return
     }
